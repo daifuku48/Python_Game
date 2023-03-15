@@ -19,6 +19,7 @@ class Player:
         self.right = False
         self.standing = True
         self.jump_height = 10
+        self.is_throw = False
         self.jump_vel = 20
         self.walk_right = [pygame.image.load("images\\rigth\sprite_man_13.png"),
                            pygame.image.load("images\\rigth\sprite_man_14.png"),
@@ -95,10 +96,17 @@ class Ball:
         self.jump_vel = 20
         self.vel_height = 250
         self.throw_right = True
+        self.throw_left = False
         self.throw = False
         self.falling = False
+        self.fallen = False
+        self.firstBall = True
+        self.win = False
         self.image = py.image.load("images\\ball.png")
         self.image = pygame.transform.scale(self.image, (60, 60))
+        self.rect = self.image.get_rect()
+        self.rect.x = 60
+        self.rect.y = 60
 
     def move_left_left_boy(self):
         if self.x > -10:
@@ -111,29 +119,10 @@ class Ball:
     def draw(self, screen):
         screen.blit(self.image, (self.x, self.y))
 
-    def move(self):
-        self.x += self.velocity[0]
-        self.y += self.velocity[1]
-
-    def collide(self, player):
-        if abs(self.x - player.x) < 50 and abs(self.y - player.y) < 50:
-            self.velocity[1] = -self.velocity[1]
-            self.x += self.velocity[0] * 2
-
     def draw_left_boy(self, screen):
         self.x = 180
         self.y = 320
         screen.blit(self.image, (self.x, self.y))
-
-    def check_bounds(self):
-        if self.x < 0 or self.x > 670:
-            self.x = 330
-            self.y = 200
-            player1.has_ball = True
-            player2.has_ball = False
-
-        if self.y < 0 or self.y > 450:
-            self.velocity[1] = -self.velocity[1]
 
     def jump_left_boy(self):
         self.is_jump = True
@@ -146,32 +135,56 @@ class Ball:
             self.jump_vel = 20
 
     def throwing(self):
-        if self.vel_height <= 0:
-            self.falling = True
-        if not self.falling:
-            if self.throw_right:
+        if self.throw_right:
+            if self.vel_height <= 0:
+                self.falling = True
+            if not self.falling:
                 if self.vel_height > 0:
                     self.x += self.velocity[0]
                     self.y += self.velocity[1]
                     self.vel_height -= self.velocity[0]
-        else:
-            self.x += self.velocity[0]
-            self.y += self.velocity[0]
-            if self.vel_height != 100:
-                self.vel_height += self.velocity[0]
-            if self.y == 250:
-                self.vel_height = 100
-                self.falling = False
+            else:
+                self.x += self.velocity[0]
+                self.y += self.velocity[0]
+                if self.vel_height != 100:
+                    self.vel_height += self.velocity[0]
+                if self.y == 330:
+                    self.vel_height = 150
+                    self.falling = False
+                    self.throw = False
+                    self.fallen = True
+        if self.throw_left:
+            if self.vel_height <= 0:
+                self.falling = True
+            if not self.falling:
+                if self.vel_height > 0:
+                    self.x -= self.velocity[0]
+                    self.y += self.velocity[1]
+                    self.vel_height -= self.velocity[0]
+            else:
+                self.x -= self.velocity[0]
+                self.y -= self.velocity[1]
+                if self.vel_height != 100:
+                    self.vel_height += self.velocity[0]
+                if self.y == 330:
+                    self.vel_height = 150
+                    self.falling = False
+                    self.throw = False
+                    self.fallen = True
+
 
 clock = pygame.time.Clock()
 
 py.init()
+py.font.init()
 py.display.set_caption("Volley")
+textfont = py.font.SysFont("Aerial", 30)
+textFinish = py.font.SysFont("Aerial", 60)
 icon = py.image.load("images\icon.png")
 py.display.set_icon(icon)
 screen = py.display.set_mode((670, 450))
 backgroundImage = py.image.load("images\\background3.png")
-stick = pygame.Surface((10, 180))
+stick = pygame.Surface((10, 200))
 animation = 0
 player2 = Player(120, 250, 70, 50, "images\\rigth\sprite_man_14.png", True)
 player1 = Player(450, 250, 70, 50, "images/left/sprite_man_11.png", False)
@@ -181,14 +194,21 @@ player2.spawn()
 run = True
 ball.draw_left_boy(screen)
 ball.withBallLeft = True
+wall = pygame.Rect(0, 0, 10, 200)
+wall.x = 330
+wall.y = 200
+left_boy_catched = False
+
+firstScore = 0
+secondScore = 0
+finish = False
 while run:
-    py.display.update()
-    screen.blit(backgroundImage, (0, 0))
-    screen.blit(stick, (330, 200))
-    player1.draw(screen)
-    player2.draw(screen)
     keys = py.key.get_pressed()
-    ball.draw(screen)
+    if ball.x == 330 and left_boy_catched and not ball.firstBall:
+        firstScore += 1
+
+    if ball.x == 330 and not left_boy_catched and not ball.firstBall:
+        secondScore += 1
 
     if keys[py.K_LEFT]:
         player1.move_left()
@@ -234,12 +254,51 @@ while run:
         ball.withBallLeft = False
         ball.throw = True
 
+    if abs(ball.x - player2.x) < 30 and abs(ball.y - player2.y) < 30 and left_boy_catched and player2.is_jump:
+        ball.vel_height = 150
+        ball.falling = False
+        ball.throw_right = True
+        ball.throw_left = False
+        left_boy_catched = False
+
+    if abs(ball.x - player1.x) < 30 and abs(ball.y - player1.y) < 30 and not left_boy_catched and player1.is_jump:
+        ball.vel_height = 150
+        ball.throw_left = True
+        ball.throw_right = False
+        ball.firstBall = False
+        ball.falling = False
+        left_boy_catched = True
+
+    if abs(ball.x - 320) < 20 and abs(ball.y - 200) < 20:
+        ball.throw = False
+        finish = True
+
+    if ball.fallen:
+        finish = True
+
+    if finish:
+        if secondScore > firstScore:
+            textFinish = textfont.render("Left player is win", True, (0, 0, 0))
+        elif secondScore < firstScore:
+            textFinish = textfont.render("Right player is win", True, (0, 0, 0))
+        else:
+            textFinish = textfont.render("Draw", True, (0, 0, 0))
+        screen.blit(textFinish, (270, 100))
+
     if ball.throw:
         ball.throwing()
+    py.display.update()
+    screen.blit(backgroundImage, (0, 0))
+    pygame.draw.rect(screen, (0, 0, 0), wall)
+    player1.draw(screen)
+    player2.draw(screen)
+    ball.draw(screen)
+    textScore = textfont.render("Score " + str(secondScore) + " : " + str(firstScore), True, (0, 0, 0))
 
+    screen.blit(textScore, (50, 20))
     for event in py.event.get():
         if event.type == py.QUIT:
             run = False
             py.quit()
 
-    clock.tick(30)
+    clock.tick(25)
